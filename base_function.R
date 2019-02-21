@@ -16,6 +16,8 @@ library(malariaAtlas)
 
 #define the location - must be an ISO3 code
 location<-NA
+#define set of points - dataframe with columns "latitude" & "longitude"
+points<-NA
 
 
 #set of functions which need to be incorporated
@@ -32,3 +34,27 @@ malariaAtlas::autoplot_MAPraster(friction)
 T <- gdistance::transition(friction, function(x)
   1 / mean(x), 8)
 T.GC <- gdistance::geoCorrection(T)
+
+#convert binary risk raster into a points layer (this will be our dataset for distance to)
+points_ebov <-
+  rasterToPoints(
+    ebov,
+    fun = function(r) {
+      r == 1
+    },
+    spatial = FALSE
+  )
+
+points_ebov <- data.frame(points_ebov)
+
+coordinates(points_ebov) <- ~ x + y
+proj4string(points_ebov) <- proj4string(loc.shp)
+
+points <- as.matrix(points_ebov@coords)
+
+points_metadata<-over(points_ebov, loc.shp)
+
+#subset points_ebov to only those with iso
+points_crop<-points_ebov[-which(is.na(points_metadata$iso)),]
+
+access.raster <- gdistance::accCost(T.GC, points)
